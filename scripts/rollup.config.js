@@ -12,7 +12,7 @@ let syncWorker;
 // for options
 const options = {
   input: 'src/videojs-http-streaming.js',
-  distName: 'videojs-http-streaming',
+  distName: 'bitcoin-streaming',
   excludeCoverage(defaults) {
     defaults.push(/^rollup-plugin-worker-factory/);
     defaults.push(/^create-test-data!/);

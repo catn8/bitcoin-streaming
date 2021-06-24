@@ -256,7 +256,7 @@ const handleSegmentResponse = ({
     return finishProcessingFn(errorObj, segment);
   }
 
-  const newBytes =
+  let newBytes =
     // although responseText "should" exist, this guard serves to prevent an error being
     // thrown for two primary cases:
     // 1. the mime type override stops working, or is not implemented for a specific
@@ -265,6 +265,19 @@ const handleSegmentResponse = ({
     (responseType === 'arraybuffer' || !request.responseText) ?
       request.response :
       stringToArrayBuffer(request.responseText.substring(segment.lastReachedChar || 0));
+
+  //TODO: decode body or handle server response in header?
+  let enc = new TextDecoder("utf-8")
+  if (newBytes.byteLength > 7 && enc.decode(newBytes.slice(0,7)) === "BITCOIN" ) {
+    console.log(`BITCOIN HEADER`, enc.decode(newBytes.slice(0,7)) )
+    //TODO: costly???
+    newBytes = newBytes.slice(8)
+    console.log(`BITCOIN RECEIVE`, newBytes)
+    //TODO: decode bitcoin transaction
+  } else {
+    console.log(`BYTE DUMP`, newBytes)
+    console.log(`HEADER`, enc.decode(newBytes.slice(0,7)) )
+  }
 
   segment.stats = getRequestStats(request);
 
@@ -1014,6 +1027,10 @@ export const mediaSegmentRequest = ({
     responseType: segmentRequestOptions.responseType
   });
   const segmentXhr = xhr(segmentRequestOptions, segmentRequestCallback);
+
+  segmentRequestOptions.headers.payment="TODO:BITCOINPAYMENT"
+  segmentRequestOptions.headers.proof="TODO:PROOF"
+  console.log(`BITCOIN REQUEST`, segmentRequestOptions)
 
   segmentXhr.addEventListener(
     'progress',
