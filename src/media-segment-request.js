@@ -1026,11 +1026,12 @@ export const mediaSegmentRequest = ({
     finishProcessingFn,
     responseType: segmentRequestOptions.responseType
   });
-  const segmentXhr = xhr(segmentRequestOptions, segmentRequestCallback);
 
   segmentRequestOptions.headers.payment="TODO:BITCOINPAYMENT"
   segmentRequestOptions.headers.proof="TODO:PROOF"
   console.log(`BITCOIN REQUEST`, segmentRequestOptions)
+
+  const segmentXhr = xhr(segmentRequestOptions, segmentRequestCallback);
 
   segmentXhr.addEventListener(
     'progress',
