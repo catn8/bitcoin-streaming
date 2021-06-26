@@ -8,6 +8,7 @@ import {
   detectContainerForBytes,
   isLikelyFmp4MediaSegment
 } from '@videojs/vhs-utils/es/containers';
+import { Wallet, IndexClient } from 'catn8-pay/dist/catn8-pay'
 
 export const REQUEST_ERRORS = {
   FAILURE: 2,
@@ -1027,7 +1028,45 @@ export const mediaSegmentRequest = ({
     responseType: segmentRequestOptions.responseType
   });
 
-  segmentRequestOptions.headers.payment="TODO:BITCOINPAYMENT"
+  //TODO: create once
+  let raw_buyvideo = 'TODO:BITCOIN'
+  const api = new IndexClient()
+  let ls_pk = localStorage.getItem("pk")
+  if (!ls_pk) {
+      ls_pk = 'KxG9aVyJXJvNF9rCrRupmH1wkn2FesQFUCt8zveRnTZUaXSB4PRV'
+      localStorage.setItem("pk", ls_pk)
+  }
+  const wallet = new Wallet(ls_pk)
+  console.log(wallet.Address.toString())
+  let utxos = null
+  let ls_utxos = localStorage.getItem("utxos")
+  let forcerefresh = false
+  if (forcerefresh || ls_utxos === "null") {
+      //TODO: this is only async call, how to eliminate?
+      ;(async () => {
+        console.log(`GETTING UTXOS`, wallet.Address.toString())
+        ls_utxos = await api.getUnspents(wallet.Address.toString())
+        console.log(`STORING utxos`,ls_utxos)
+        localStorage.setItem("utxos", JSON.stringify(ls_utxos))
+      })()
+  } else {
+      utxos = JSON.parse(ls_utxos)
+  }
+  console.log(wallet.Address.toString())
+  //insert your own address here to pay yourself
+  const dave_moneybutton = '145mzjipCjbaAaFPjAu1oquBRLeu3M6SKT'
+  if (utxos && utxos.length > 0) {
+    const utxo = utxos[0]
+    console.log(`UTXO`, utxo)
+    raw_buyvideo = wallet.spend(dave_moneybutton,1000,utxo)
+    console.log(`PURCHASE`,raw_buyvideo)
+    // raw_doublespend = wallet.spend(wallet.Address.toString(),1000,utxo)
+    // console.log(`DS`,raw_doublespend)
+  }
+  else {
+    console.error(`NO UTXOS`)
+  }
+  segmentRequestOptions.headers.payment=raw_buyvideo
   segmentRequestOptions.headers.proof="TODO:PROOF"
   console.log(`BITCOIN REQUEST`, segmentRequestOptions)
 
