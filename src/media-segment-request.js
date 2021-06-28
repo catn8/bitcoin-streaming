@@ -1029,15 +1029,15 @@ export const mediaSegmentRequest = ({
   });
 
   //TODO: create once
-  let raw_buyvideo = 'TODO:BITCOIN'
   const api = new IndexClient()
+  let build_buyvideo = {txid:'',rawtx:'TODO:BITCOIN'}
   let ls_pk = localStorage.getItem("pk")
   if (!ls_pk) {
       ls_pk = 'KxG9aVyJXJvNF9rCrRupmH1wkn2FesQFUCt8zveRnTZUaXSB4PRV'
       localStorage.setItem("pk", ls_pk)
   }
   const wallet = new Wallet(ls_pk)
-  console.log(wallet.Address.toString())
+  console.log(`CATN8:mediaSegmentRequest`,wallet.Address.toString())
   let utxos = null
   let ls_utxos = localStorage.getItem("utxos")
   let forcerefresh = false
@@ -1052,21 +1052,23 @@ export const mediaSegmentRequest = ({
   } else {
       utxos = JSON.parse(ls_utxos)
   }
-  console.log(wallet.Address.toString())
+  wallet.Unspents = utxos
   //insert your own address here to pay yourself
   const dave_moneybutton = '145mzjipCjbaAaFPjAu1oquBRLeu3M6SKT'
   if (utxos && utxos.length > 0) {
-    const utxo = utxos[0]
+    const selected = wallet.selectUnspents(500)
+    const utxo = selected[0]
     console.log(`UTXO`, utxo)
-    raw_buyvideo = wallet.spend(dave_moneybutton,1000,utxo)
-    console.log(`PURCHASE`,raw_buyvideo)
+    build_buyvideo = wallet.spend(wallet.Address.toString(),500,utxo)
+    console.log(`PURCHASE`,build_buyvideo)
     // raw_doublespend = wallet.spend(wallet.Address.toString(),1000,utxo)
     // console.log(`DS`,raw_doublespend)
   }
   else {
     console.error(`NO UTXOS`)
   }
-  segmentRequestOptions.headers.payment=raw_buyvideo
+  segmentRequestOptions.headers.publickey=wallet.PublicKey
+  segmentRequestOptions.headers.payment=build_buyvideo.rawhex
   segmentRequestOptions.headers.proof="TODO:PROOF"
   console.log(`BITCOIN REQUEST`, segmentRequestOptions)
 
