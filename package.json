@@ -31,7 +31,7 @@
     "watch": "npm-run-all -p watch:*",
     "watch:js": "npm run build:js -- -w",
     "update": "npm i catn8-pay",
-    "install": "cp ./dist/* ../catn8-server/src/player/",
+    "install": "cp ./dist/* ../catn8-server/src/player/ | cp ./dist/* ../catn8-demo/public/",
     "release": "npm run build && npm run install"
   },
   "keywords": [
@@ -62,7 +62,7 @@
     "@babel/runtime": "^7.12.5",
     "@videojs/vhs-utils": "^3.0.2",
     "aes-decrypter": "3.1.2",
-    "catn8-pay": "file:../catn8-pay",
+    "catn8-pay": "^0.1.24",
     "global": "^4.4.0",
     "m3u8-parser": "4.7.0",
     "mpd-parser": "0.17.0",
@@ -107,14 +107,5 @@
   "engines": {
     "node": ">=8",
     "npm": ">=5"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "*.js": "vjsstandard --fix",
-    "README.md": "doctoc --notitle"
   }
 }
