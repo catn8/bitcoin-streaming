@@ -1056,10 +1056,9 @@ export const mediaSegmentRequest = ({
   //insert your own address here to pay yourself
   const dave_moneybutton = '145mzjipCjbaAaFPjAu1oquBRLeu3M6SKT'
   if (utxos && utxos.length > 0) {
-    const selected = wallet.selectUnspents(500)
-    const utxo = selected[0]
-    console.log(`UTXO`, utxo)
-    build_buyvideo = wallet.spend(wallet.Address.toString(),500,utxo)
+    const selected = wallet.Envelopes.selectUnspents(500)
+    console.log(`UTXO`, selected)
+    build_buyvideo = wallet.spend(wallet.Address.toString(),500,selected)
     console.log(`PURCHASE`,build_buyvideo)
     // raw_doublespend = wallet.spend(wallet.Address.toString(),1000,utxo)
     // console.log(`DS`,raw_doublespend)
