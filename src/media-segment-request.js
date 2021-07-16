@@ -251,6 +251,8 @@ const handleSegmentResponse = ({
   finishProcessingFn,
   responseType
 }) => (error, request) => {
+  // console.log(error)
+  // console.log(request)
   const errorObj = handleErrors(error, request);
 
   if (errorObj) {
@@ -269,15 +271,25 @@ const handleSegmentResponse = ({
 
   //TODO: decode body or handle server response in header?
   let enc = new TextDecoder("utf-8")
-  if (newBytes.byteLength > 7 && enc.decode(newBytes.slice(0,7)) === "BITCOIN" ) {
-    console.log(`BITCOIN HEADER`, enc.decode(newBytes.slice(0,7)) )
-    //TODO: costly???
-    newBytes = newBytes.slice(8)
-    console.log(`BITCOIN RECEIVE`, newBytes)
-    //TODO: decode bitcoin transaction
-  } else {
-    console.log(`BYTE DUMP`, newBytes)
-    console.log(`HEADER`, enc.decode(newBytes.slice(0,7)) )
+  let body = enc.decode(newBytes)
+  // if (newBytes.byteLength > 7 && enc.decode(newBytes.slice(0,7)) === "BITCOIN" ) {
+  //   console.log(`BITCOIN HEADER`, enc.decode(newBytes.slice(0,7)) )
+  //   //TODO: costly???
+  //   newBytes = newBytes.slice(8)
+  //   console.log(`BITCOIN RECEIVE`, newBytes)
+  //   //TODO: decode bitcoin transaction
+  // } else {
+  //   console.log(`BYTE DUMP`, newBytes)
+  //   console.log(`HEADER`, enc.decode(newBytes.slice(0,7)) )
+  // }
+  if (body.startsWith('A payment is required')) {
+    // store template in local storage
+    const templatestring = body.substring(body.indexOf('{"template":'))
+    const 
+    templatewrapper = JSON.parse(templatestring)
+    const template = templatewrapper.template
+    console.log(`Template retrieved:`, template)
+    localStorage.setItem('template', JSON.stringify(template))
   }
 
   segment.stats = getRequestStats(request);
@@ -1030,6 +1042,7 @@ export const mediaSegmentRequest = ({
 
   //TODO: create once
   const api = new IndexClient()
+  let template = null
   let build_buyvideo = {txid:'',rawtx:'TODO:BITCOIN'}
   let ls_pk = localStorage.getItem("pk")
   if (!ls_pk) {
@@ -1038,11 +1051,16 @@ export const mediaSegmentRequest = ({
   }
   const wallet = new Wallet(ls_pk)
   console.log(`CATN8:mediaSegmentRequest`,wallet.Address.toString())
+  let ls_template = localStorage.getItem("template")
+  if (ls_template) {
+    template = JSON.parse(ls_template)
+  }
   let utxos = null
   let ls_utxos = localStorage.getItem("utxos")
   let forcerefresh = false
   if (forcerefresh || ls_utxos === "null") {
       //TODO: this is only async call, how to eliminate?
+      console.log(`FORCING UTXO UPDATE`)
       ;(async () => {
         console.log(`GETTING UTXOS`, wallet.Address.toString())
         ls_utxos = await api.getUnspents(wallet.Address.toString())
@@ -1055,22 +1073,29 @@ export const mediaSegmentRequest = ({
   wallet.Unspents = utxos
   //insert your own address here to pay yourself
   const dave_moneybutton = '145mzjipCjbaAaFPjAu1oquBRLeu3M6SKT'
+  let selected = []
   if (utxos && utxos.length > 0) {
-    const selected = wallet.Envelopes.selectUnspents(500)
+    selected = wallet.Envelopes.selectUnspents(500)
     console.log(`UTXO`, selected)
-    build_buyvideo = wallet.spend(wallet.Address.toString(),500,selected)
+    const to = template?.to || wallet.Address.toString()
+    console.log(`to`, to)
+    const fee_fudge = 250 // fee fudge so that wallet selects enough utxos to spend
+    const price = (template?.price || 1000) + fee_fudge
+    build_buyvideo = wallet.spend(to,price,selected)
     console.log(`PURCHASE`,build_buyvideo)
     // raw_doublespend = wallet.spend(wallet.Address.toString(),1000,utxo)
     // console.log(`DS`,raw_doublespend)
   }
   else {
-    console.error(`NO UTXOS`)
+    console.error(`NO UTXOS ${utxos} ${ls_utxos}`)
   }
   segmentRequestOptions.headers.publickey=wallet.PublicKey
   segmentRequestOptions.headers.payment=build_buyvideo.rawhex
-  segmentRequestOptions.headers.proof="TODO:PROOF"
+  // better way to get proofs?
+  segmentRequestOptions.headers.proof=JSON.stringify(selected)
   console.log(`BITCOIN REQUEST`, segmentRequestOptions)
 
+  //TODO: how to get 402 result
   const segmentXhr = xhr(segmentRequestOptions, segmentRequestCallback);
 
   segmentXhr.addEventListener(
