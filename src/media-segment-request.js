@@ -8,13 +8,43 @@ import {
   detectContainerForBytes,
   isLikelyFmp4MediaSegment
 } from '@videojs/vhs-utils/es/containers';
-import { Wallet, IndexClient } from 'catn8-pay/dist/catn8-pay'
+import { Wallet, IndexClient, KeyPair } from 'catn8-pay/dist/catn8-pay'
 
 export const REQUEST_ERRORS = {
   FAILURE: 2,
   TIMEOUT: -101,
   ABORTED: -102
 };
+
+const catn8_log = (it) => {
+  console.log(`CATN8:mediaSegmentRequest`, it)
+}
+
+// put instances here will make them single instances
+const api = new IndexClient()
+let ls_pk = localStorage.getItem("pk")
+if (!ls_pk) {
+  //TODO: no hard coding
+  const wif = KeyPair.fromRandom().toWif()
+  // ls_pk = 'KxG9aVyJXJvNF9rCrRupmH1wkn2FesQFUCt8zveRnTZUaXSB4PRV'
+  localStorage.setItem("pk", wif)
+}
+const wallet = new Wallet(ls_pk)
+catn8_log(wallet.Address.toString())
+let template = null
+let utxos = null
+let ls_utxos = localStorage.getItem("utxos")
+if (!ls_utxos || ls_utxos === "null") {
+    ;(async () => {
+      console.log(`GETTING UTXOS`, wallet.Address.toString())
+      utxos = await api.getUnspents(wallet.Address.toString())
+      console.log(`STORING utxos`,utxos)
+      ls_utxos = JSON.stringify(ls_utxos)
+      localStorage.setItem("utxos", ls_utxos)
+    })()
+} else {
+    utxos = JSON.parse(ls_utxos)
+}
 
 /**
  * Abort all requests
@@ -272,24 +302,15 @@ const handleSegmentResponse = ({
   //TODO: decode body or handle server response in header?
   let enc = new TextDecoder("utf-8")
   let body = enc.decode(newBytes)
-  // if (newBytes.byteLength > 7 && enc.decode(newBytes.slice(0,7)) === "BITCOIN" ) {
-  //   console.log(`BITCOIN HEADER`, enc.decode(newBytes.slice(0,7)) )
-  //   //TODO: costly???
-  //   newBytes = newBytes.slice(8)
-  //   console.log(`BITCOIN RECEIVE`, newBytes)
-  //   //TODO: decode bitcoin transaction
-  // } else {
-  //   console.log(`BYTE DUMP`, newBytes)
-  //   console.log(`HEADER`, enc.decode(newBytes.slice(0,7)) )
-  // }
   if (body.startsWith('A payment is required')) {
-    // store template in local storage
     const templatestring = body.substring(body.indexOf('{"template":'))
-    const 
-    templatewrapper = JSON.parse(templatestring)
-    const template = templatewrapper.template
+    const templatewrapper = JSON.parse(templatestring)
+    template = templatewrapper.template
     console.log(`Template retrieved:`, template)
-    localStorage.setItem('template', JSON.stringify(template))
+    // localStorage.setItem('template', JSON.stringify(template))
+  } else {
+    const selectedutxo = JSON.parse(request.headers.proof)
+    wallet.updateSpent(request.headers.payment, selectedutxo)
   }
 
   segment.stats = getRequestStats(request);
@@ -1040,47 +1061,29 @@ export const mediaSegmentRequest = ({
     responseType: segmentRequestOptions.responseType
   });
 
-  //TODO: create once
-  const api = new IndexClient()
-  let template = null
   let build_buyvideo = {txid:'',rawtx:'TODO:BITCOIN'}
-  let ls_pk = localStorage.getItem("pk")
-  if (!ls_pk) {
-      ls_pk = 'KxG9aVyJXJvNF9rCrRupmH1wkn2FesQFUCt8zveRnTZUaXSB4PRV'
-      localStorage.setItem("pk", ls_pk)
-  }
-  const wallet = new Wallet(ls_pk)
-  console.log(`CATN8:mediaSegmentRequest`,wallet.Address.toString())
-  let ls_template = localStorage.getItem("template")
-  if (ls_template) {
-    template = JSON.parse(ls_template)
-  }
-  let utxos = null
-  let ls_utxos = localStorage.getItem("utxos")
-  let forcerefresh = false
-  if (forcerefresh || ls_utxos === "null") {
-      //TODO: this is only async call, how to eliminate?
-      console.log(`FORCING UTXO UPDATE`)
+  if (!utxos || utxos.length == 0) {
       ;(async () => {
         console.log(`GETTING UTXOS`, wallet.Address.toString())
-        ls_utxos = await api.getUnspents(wallet.Address.toString())
-        console.log(`STORING utxos`,ls_utxos)
-        localStorage.setItem("utxos", JSON.stringify(ls_utxos))
+        utxos = await api.getUnspents(wallet.Address.toString())
+        wallet.Unspents = utxos
+        console.log(`STORING utxos`,utxos)
+        ls_utxos = JSON.stringify(utxos)
+        localStorage.setItem("utxos", ls_utxos)
       })()
-  } else {
-      utxos = JSON.parse(ls_utxos)
   }
-  wallet.Unspents = utxos
-  //insert your own address here to pay yourself
-  const dave_moneybutton = '145mzjipCjbaAaFPjAu1oquBRLeu3M6SKT'
+  if (utxos && utxos != null && utxos !== "null") {
+    wallet.Unspents = utxos
+  }
   let selected = []
   if (utxos && utxos.length > 0) {
-    selected = wallet.Envelopes.selectUnspents(500)
-    console.log(`UTXO`, selected)
     const to = template?.to || wallet.Address.toString()
     console.log(`to`, to)
     const fee_fudge = 250 // fee fudge so that wallet selects enough utxos to spend
     const price = (template?.price || 1000) + fee_fudge
+    console.log(`balance`, wallet.Balance)
+    selected = wallet.Envelopes.selectUnspents(price)
+    console.log(`SELECTED`, selected)
     build_buyvideo = wallet.spend(to,price,selected)
     console.log(`PURCHASE`,build_buyvideo)
     // raw_doublespend = wallet.spend(wallet.Address.toString(),1000,utxo)
@@ -1090,12 +1093,11 @@ export const mediaSegmentRequest = ({
     console.error(`NO UTXOS ${utxos} ${ls_utxos}`)
   }
   segmentRequestOptions.headers.publickey=wallet.PublicKey
-  segmentRequestOptions.headers.payment=build_buyvideo.rawhex
+  segmentRequestOptions.headers.payment=build_buyvideo ? build_buyvideo.rawhex : ``
   // better way to get proofs?
   segmentRequestOptions.headers.proof=JSON.stringify(selected)
   console.log(`BITCOIN REQUEST`, segmentRequestOptions)
 
-  //TODO: how to get 402 result
   const segmentXhr = xhr(segmentRequestOptions, segmentRequestCallback);
 
   segmentXhr.addEventListener(
