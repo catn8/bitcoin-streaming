@@ -24,7 +24,6 @@ const catn8_log = (it) => {
 const api = new IndexClient()
 let ls_pk = localStorage.getItem("pk")
 if (!ls_pk) {
-  //TODO: no hard coding
   const wif = KeyPair.fromRandom().toWif()
   // ls_pk = 'KxG9aVyJXJvNF9rCrRupmH1wkn2FesQFUCt8zveRnTZUaXSB4PRV'
   localStorage.setItem("pk", wif)
@@ -35,15 +34,15 @@ let template = null
 let utxos = null
 let ls_utxos = localStorage.getItem("utxos")
 if (!ls_utxos || ls_utxos === "null") {
-    ;(async () => {
-      console.log(`GETTING UTXOS`, wallet.Address.toString())
-      utxos = await api.getUnspents(wallet.Address.toString())
-      console.log(`STORING utxos`,utxos)
-      ls_utxos = JSON.stringify(ls_utxos)
-      localStorage.setItem("utxos", ls_utxos)
-    })()
+  ;(async () => {
+    console.log(`GETTING UTXOS`, wallet.Address.toString())
+    utxos = await api.getUnspents(wallet.Address.toString())
+    console.log(`STORING utxos`,utxos)
+    ls_utxos = JSON.stringify(ls_utxos)
+    localStorage.setItem("utxos", ls_utxos)
+  })()
 } else {
-    utxos = JSON.parse(ls_utxos)
+  utxos = JSON.parse(ls_utxos)
 }
 
 /**
@@ -308,9 +307,18 @@ const handleSegmentResponse = ({
     template = templatewrapper.template
     console.log(`Template retrieved:`, template)
     // localStorage.setItem('template', JSON.stringify(template))
+
+    // what to do here???
+    return finishProcessingFn(null, segment);
+
   } else {
     const selectedutxo = JSON.parse(request.headers.proof)
+    console.log(`SELECTEDUTXOS`, selectedutxo)
+    console.log(`TX`,request.headers.payment)
+    console.log(`bal before`, wallet.Balance)
     wallet.updateSpent(request.headers.payment, selectedutxo)
+    console.log(`bal after`, wallet.Balance)
+
   }
 
   segment.stats = getRequestStats(request);
