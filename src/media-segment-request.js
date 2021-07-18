@@ -23,10 +23,12 @@ const catn8_log = (it) => {
 // put instances here will make them single instances
 const api = new IndexClient()
 let ls_pk = localStorage.getItem("pk")
-if (!ls_pk) {
+if (ls_pk === null || ls_pk === "null" || !ls_pk) {
   const wif = KeyPair.fromRandom().toWif()
+  catn8_log(`new wif ${wif}`)
   // ls_pk = 'KxG9aVyJXJvNF9rCrRupmH1wkn2FesQFUCt8zveRnTZUaXSB4PRV'
   localStorage.setItem("pk", wif)
+  ls_pk = wif
 }
 const wallet = new Wallet(ls_pk)
 catn8_log(wallet.Address.toString())
