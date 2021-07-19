@@ -1096,8 +1096,14 @@ export const mediaSegmentRequest = ({
     console.log(`SELECTED`, selected)
     build_buyvideo = wallet.spend(to,price,selected)
     console.log(`PURCHASE`,build_buyvideo)
-    // raw_doublespend = wallet.spend(wallet.Address.toString(),1000,utxo)
-    // console.log(`DS`,raw_doublespend)
+    // // TRY DOUBLE SPEND
+    // const doublespend = wallet.spend(wallet.Address.toString(),price,selected)
+    // console.log(`DS`,doublespend)
+    // const api = new IndexClient()
+    // ;(async () => {
+    //   const attempt = await api.broadcastmapi({rawtx:doublespend.rawhex,dsCheck:false,merkleProof:false})
+    //   console.log(`ds attempt`,attempt)
+    // })()
   }
   else {
     console.error(`NO UTXOS ${utxos} ${ls_utxos}`)
