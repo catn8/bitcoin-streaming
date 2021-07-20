@@ -34,14 +34,14 @@ const wallet = new Wallet(ls_pk)
 catn8_log(wallet.Address.toString())
 let template = null
 let utxos = null
-let ls_utxos = localStorage.getItem("utxos")
+let ls_utxos = null //localStorage.getItem("utxos")
 if (!ls_utxos || ls_utxos === "null") {
   ;(async () => {
     console.log(`GETTING UTXOS`, wallet.Address.toString())
     utxos = await api.getUnspents(wallet.Address.toString())
     console.log(`STORING utxos`,utxos)
     ls_utxos = JSON.stringify(ls_utxos)
-    localStorage.setItem("utxos", ls_utxos)
+    //localStorage.setItem("utxos", ls_utxos)
   })()
 } else {
   utxos = JSON.parse(ls_utxos)
@@ -1079,7 +1079,7 @@ export const mediaSegmentRequest = ({
         wallet.Unspents = utxos
         console.log(`STORING utxos`,utxos)
         ls_utxos = JSON.stringify(utxos)
-        localStorage.setItem("utxos", ls_utxos)
+        // localStorage.setItem("utxos", ls_utxos)
       })()
   }
   if (utxos && utxos != null && utxos !== "null") {
