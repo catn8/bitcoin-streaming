@@ -1090,9 +1090,9 @@ export const mediaSegmentRequest = ({
     const to = template?.to || wallet.Address.toString()
     console.log(`to`, to)
     const fee_fudge = 250 // fee fudge so that wallet selects enough utxos to spend
-    const price = (template?.price || 1000) + fee_fudge
+    const price = (template?.price || 1000)
     console.log(`balance`, wallet.Balance)
-    selected = wallet.Envelopes.selectUnspents(price)
+    selected = wallet.Envelopes.selectUnspents(price+fee_fudge)
     console.log(`SELECTED`, selected)
     build_buyvideo = wallet.spend(to,price,selected)
     console.log(`PURCHASE`,build_buyvideo)
