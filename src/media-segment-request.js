@@ -9,6 +9,11 @@ import {
   isLikelyFmp4MediaSegment
 } from '@videojs/vhs-utils/es/containers';
 import { Wallet, IndexClient, KeyPair } from 'catn8-pay/dist/catn8-pay'
+import * as es from 'eventing-bus'
+// unfortunately this does not work
+//import EventStream from 'eventing-bus'
+const EventStream = es["default"]
+window.EventStream = EventStream // put EventStream instance on window for page to pick it up
 
 export const REQUEST_ERRORS = {
   FAILURE: 2,
@@ -45,6 +50,24 @@ if (!ls_utxos || ls_utxos === "null") {
   })()
 } else {
   utxos = JSON.parse(ls_utxos)
+}
+
+EventStream.on("wallet_page", message => {
+  console.log(`EVENT from page`, message)
+})
+// page not listening yet, do not publish yet
+
+// update wallet after segment received
+const afterSegment = (wallet, request) => {
+  //will be envelopes
+  const selectedutxo = JSON.parse(request.headers.proof)
+  console.log(`headers`, request.headers)
+  const balanceBefore = wallet.Balance
+  wallet.updateSpent(request.headers.payment, selectedutxo)
+  const balanceAfter = wallet.Balance
+  console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceBefore-balanceAfter)
+  //localStorage.setItem('envelopes',JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
+  EventStream.publish("wallet_spend", JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
 }
 
 /**
@@ -314,13 +337,7 @@ const handleSegmentResponse = ({
     return finishProcessingFn(null, segment);
 
   } else {
-    const selectedutxo = JSON.parse(request.headers.proof)
-    console.log(`SELECTEDUTXOS`, selectedutxo)
-    console.log(`TX`,request.headers.payment)
-    console.log(`bal before`, wallet.Balance)
-    wallet.updateSpent(request.headers.payment, selectedutxo)
-    console.log(`bal after`, wallet.Balance)
-
+    afterSegment(wallet,request)
   }
 
   segment.stats = getRequestStats(request);
@@ -1085,16 +1102,16 @@ export const mediaSegmentRequest = ({
   if (utxos && utxos != null && utxos !== "null") {
     wallet.Unspents = utxos
   }
-  let selected = []
+  let selected = null
   if (utxos && utxos.length > 0) {
     const to = template?.to || wallet.Address.toString()
     console.log(`to`, to)
     const fee_fudge = 250 // fee fudge so that wallet selects enough utxos to spend
     const price = (template?.price || 1000)
     console.log(`balance`, wallet.Balance)
-    selected = wallet.Envelopes.selectUnspents(price+fee_fudge)
+    selected = wallet.Envelopes.selectUnspentEnvelopes(price+fee_fudge)
     console.log(`SELECTED`, selected)
-    build_buyvideo = wallet.spend(to,price,selected)
+    build_buyvideo = wallet.spendEnvelopes(to,price,selected)
     console.log(`PURCHASE`,build_buyvideo)
     // // TRY DOUBLE SPEND
     // const doublespend = wallet.spend(wallet.Address.toString(),price,selected)
