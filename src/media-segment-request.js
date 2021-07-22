@@ -63,7 +63,7 @@ const afterSegment = (wallet, request, selectedenvelopes) => {
   console.log(`headers used`, request.headers)
   const balanceBefore = wallet.Balance
   console.log(`selected envelopes`, selectedenvelopes)
-  wallet.spendEnvelopes(request.headers.payment, selectedenvelopes)
+  wallet.updateSpentEnvelopes(request.headers.payment, selectedenvelopes)
   const balanceAfter = wallet.Balance
   console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceAfter-balanceBefore)
   //localStorage.setItem('envelopes',JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
