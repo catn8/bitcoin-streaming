@@ -59,14 +59,13 @@ EventStream.on("wallet_page", message => {
 // page not listening yet, do not publish yet
 
 // update wallet after segment received
-const afterSegment = (wallet, request) => {
-  //will be envelopes
-  const selectedutxo = JSON.parse(request.headers.proof)
-  console.log(`headers`, request.headers)
+const afterSegment = (wallet, request, selectedenvelopes) => {
+  console.log(`headers used`, request.headers)
   const balanceBefore = wallet.Balance
-  wallet.updateSpentEnvelopes(request.headers.payment, selectedutxo)
+  console.log(`selected envelopes`, selectedenvelopes)
+  wallet.spendEnvelopes(request.headers.payment, selectedenvelopes)
   const balanceAfter = wallet.Balance
-  console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceBefore-balanceAfter)
+  console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceAfter-balanceBefore)
   //localStorage.setItem('envelopes',JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
   EventStream.publish("wallet_spend", JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
 }
@@ -338,7 +337,8 @@ const handleSegmentResponse = ({
     return finishProcessingFn(null, segment);
 
   } else {
-    afterSegment(wallet,request)
+    const selectedenvelopes = JSON.parse(request.headers.proof)
+    afterSegment(wallet,request, selectedenvelopes)
   }
 
   segment.stats = getRequestStats(request);
@@ -1100,7 +1100,7 @@ export const mediaSegmentRequest = ({
       })()
   }
   if (envelopes && envelopes != null && envelopes !== "null") {
-    console.log(`LOADING ENVELOPES`, envelopes)
+    console.log(`LOADING ENVELOPES`, JSON.stringify(envelopes._token_envelopes))
     //todo, program wallet to accept object
     wallet.Envelopes.load(envelopes._token_envelopes)
   }
