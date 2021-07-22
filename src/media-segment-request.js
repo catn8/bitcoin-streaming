@@ -38,18 +38,19 @@ if (ls_pk === null || ls_pk === "null" || !ls_pk) {
 const wallet = new Wallet(ls_pk)
 catn8_log(wallet.Address.toString())
 let template = null
-let utxos = null
-let ls_utxos = null //localStorage.getItem("utxos")
-if (!ls_utxos || ls_utxos === "null") {
+//let utxos = null
+let envelopes = null //wallet.Envelopes object
+let ls_envelopes = localStorage.getItem("envelopes")
+if (!ls_envelopes || ls_envelopes === "null") {
   ;(async () => {
-    console.log(`GETTING UTXOS`, wallet.Address.toString())
-    utxos = await api.getUnspents(wallet.Address.toString())
-    console.log(`STORING utxos`,utxos)
-    ls_utxos = JSON.stringify(ls_utxos)
-    //localStorage.setItem("utxos", ls_utxos)
+    console.log(`GETTING ENVELOPES`, wallet.Address.toString())
+    await wallet.utxofetch()
+    envelopes = wallet.Envelopes
+    localStorage.setItem("envelopes", JSON.stringify({from:'plugin',envelopes:envelopes}))
   })()
 } else {
-  utxos = JSON.parse(ls_utxos)
+  const envelopes_storage = JSON.parse(ls_envelopes)
+  if (envelopes_storage) envelopes = envelopes_storage.envelopes
 }
 
 EventStream.on("wallet_page", message => {
@@ -63,7 +64,7 @@ const afterSegment = (wallet, request) => {
   const selectedutxo = JSON.parse(request.headers.proof)
   console.log(`headers`, request.headers)
   const balanceBefore = wallet.Balance
-  wallet.updateSpent(request.headers.payment, selectedutxo)
+  wallet.updateSpentEnvelopes(request.headers.payment, selectedutxo)
   const balanceAfter = wallet.Balance
   console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceBefore-balanceAfter)
   //localStorage.setItem('envelopes',JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
@@ -1089,21 +1090,22 @@ export const mediaSegmentRequest = ({
   });
 
   let build_buyvideo = {txid:'',rawtx:'TODO:BITCOIN'}
-  if (!utxos || utxos.length == 0) {
+  if (!envelopes || envelopes.length == 0) {
       ;(async () => {
-        console.log(`GETTING UTXOS`, wallet.Address.toString())
-        utxos = await api.getUnspents(wallet.Address.toString())
-        wallet.Unspents = utxos
-        console.log(`STORING utxos`,utxos)
-        ls_utxos = JSON.stringify(utxos)
-        // localStorage.setItem("utxos", ls_utxos)
+        console.log(`GETTING ENVELOPES`, wallet.Address.toString())
+        await wallet.utxofetch()
+        console.log(`STORING envelopes`,wallet.Envelopes)
+        ls_envelopes = JSON.stringify({from:'plugin',envelopes:wallet.Envelopes})
+        localStorage.setItem("envelopes", ls_envelopes)
       })()
   }
-  if (utxos && utxos != null && utxos !== "null") {
-    wallet.Unspents = utxos
+  if (envelopes && envelopes != null && envelopes !== "null") {
+    console.log(`LOADING ENVELOPES`, envelopes)
+    //todo, program wallet to accept object
+    wallet.Envelopes.load(envelopes._token_envelopes)
   }
   let selected = null
-  if (utxos && utxos.length > 0) {
+  if (envelopes && envelopes._token_envelopes && envelopes._token_envelopes.length > 0) {
     const to = template?.to || wallet.Address.toString()
     console.log(`to`, to)
     const fee_fudge = 250 // fee fudge so that wallet selects enough utxos to spend
@@ -1123,12 +1125,13 @@ export const mediaSegmentRequest = ({
     // })()
   }
   else {
-    console.error(`NO UTXOS ${utxos} ${ls_utxos}`)
+    console.error(`NO ENVELOPES ${envelopes} ${ls_envelopes}`)
   }
   segmentRequestOptions.headers.publickey=wallet.PublicKey
   segmentRequestOptions.headers.payment=build_buyvideo ? build_buyvideo.rawhex : ``
   // better way to get proofs?
   segmentRequestOptions.headers.proof=JSON.stringify(selected)
+  //segmentRequestOptions.headers.proof=JSON.stringify({dummy:"TODO"})
   console.log(`BITCOIN REQUEST`, segmentRequestOptions)
 
   const segmentXhr = xhr(segmentRequestOptions, segmentRequestCallback);
