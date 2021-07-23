@@ -44,7 +44,7 @@ if (!ls_envelopes || ls_envelopes === "null") {
   ;(async () => {
     console.log(`GETTING ENVELOPES`, wallet.Address.toString())
     await wallet.utxofetch()
-    // envelopes = wallet.EnvelopesCopy
+    envelopes = wallet.EnvelopesCopy
     localStorage.setItem("envelopes", JSON.stringify({from:'plugin',envelopes:envelopes}))
   })()
 } else {
