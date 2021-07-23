@@ -55,6 +55,13 @@ if (!ls_envelopes || ls_envelopes === "null") {
 
 EventStream.on("wallet_page", message => {
   console.log(`EVENT from page`, message)
+  if (message._token_envelopes) {
+    envelopes = message
+    // page did a sync, update our wallet with envelopes
+    console.log(`plugin balance before event`, wallet.Balance)
+    wallet.Envelopes.load(envelopes)
+    console.log(`plugin balance after event`, wallet.Balance)
+  }
 })
 // page not listening yet, do not publish yet
 
@@ -65,7 +72,11 @@ const afterSegment = (wallet, request, selectedenvelopes) => {
   console.log(`selected envelopes`, selectedenvelopes)
   wallet.updateSpentEnvelopes(request.headers.payment, selectedenvelopes)
   const balanceAfter = wallet.Balance
-  console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceAfter-balanceBefore)
+  if (balanceAfter>balanceBefore) {
+    console.error(`balance`, balanceBefore,'=>',balanceAfter,balanceAfter-balanceBefore)
+  } else {
+    console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceAfter-balanceBefore)
+  }
   //localStorage.setItem('envelopes',JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
   EventStream.publish("wallet_spend", JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
 }
@@ -1100,9 +1111,9 @@ export const mediaSegmentRequest = ({
       })()
   }
   if (envelopes && envelopes != null && envelopes !== "null") {
-    console.log(`LOADING ENVELOPES`, JSON.stringify(envelopes._token_envelopes))
+    console.log(`LOADING ENVELOPES`, envelopes)
     //todo, program wallet to accept object
-    wallet.Envelopes.load(envelopes._token_envelopes)
+    wallet.Envelopes.load(envelopes)
   }
   let selected = null
   if (envelopes && envelopes._token_envelopes && envelopes._token_envelopes.length > 0) {
