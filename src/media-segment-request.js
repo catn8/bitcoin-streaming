@@ -38,14 +38,13 @@ if (ls_pk === null || ls_pk === "null" || !ls_pk) {
 const wallet = new Wallet(ls_pk)
 catn8_log(wallet.Address.toString())
 let template = null
-//let utxos = null
 let envelopes = null //wallet.Envelopes object
 let ls_envelopes = localStorage.getItem("envelopes")
 if (!ls_envelopes || ls_envelopes === "null") {
   ;(async () => {
     console.log(`GETTING ENVELOPES`, wallet.Address.toString())
     await wallet.utxofetch()
-    envelopes = wallet.Envelopes
+    // envelopes = wallet.EnvelopesCopy
     localStorage.setItem("envelopes", JSON.stringify({from:'plugin',envelopes:envelopes}))
   })()
 } else {
@@ -63,6 +62,10 @@ EventStream.on("wallet_page", message => {
     console.log(`plugin balance after event`, wallet.Balance)
   }
 })
+EventStream.on("template", message => {
+  console.log(`template from page`, message)
+  template = message
+})
 // page not listening yet, do not publish yet
 
 // update wallet after segment received
@@ -70,15 +73,17 @@ const afterSegment = (wallet, request, selectedenvelopes) => {
   console.log(`headers used`, request.headers)
   const balanceBefore = wallet.Balance
   console.log(`selected envelopes`, selectedenvelopes)
-  wallet.updateSpentEnvelopes(request.headers.payment, selectedenvelopes)
+  wallet.updateSpentEnvelopes(request.headers.payment, selectedenvelopes._token_envelopes)
   const balanceAfter = wallet.Balance
   if (balanceAfter>balanceBefore) {
     console.error(`balance`, balanceBefore,'=>',balanceAfter,balanceAfter-balanceBefore)
   } else {
     console.log(`balance`, balanceBefore,'=>',balanceAfter,balanceAfter-balanceBefore)
   }
+  envelopes = wallet.Envelopes
+  console.log(`updated envelopes`,envelopes)
   //localStorage.setItem('envelopes',JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
-  EventStream.publish("wallet_spend", JSON.stringify({from:'plugin',envelopes:wallet.Envelopes}))
+  EventStream.publish("wallet_spend", {from:'plugin',envelopes:wallet.Envelopes})
 }
 
 /**
@@ -1110,10 +1115,10 @@ export const mediaSegmentRequest = ({
         localStorage.setItem("envelopes", ls_envelopes)
       })()
   }
-  if (envelopes && envelopes != null && envelopes !== "null") {
+  if (wallet.Balance<2000 && envelopes && envelopes != null && envelopes !== "null") {
     console.log(`LOADING ENVELOPES`, envelopes)
-    //todo, program wallet to accept object
     wallet.Envelopes.load(envelopes)
+    console.log(`loaded balance`, wallet.Balance)
   }
   let selected = null
   if (envelopes && envelopes._token_envelopes && envelopes._token_envelopes.length > 0) {
@@ -1121,8 +1126,8 @@ export const mediaSegmentRequest = ({
     console.log(`to`, to)
     const fee_fudge = 250 // fee fudge so that wallet selects enough utxos to spend
     const price = (template?.price || 1000)
-    console.log(`balance`, wallet.Balance)
-    selected = wallet.Envelopes.selectUnspentEnvelopes(price+fee_fudge)
+    const selectedraw = wallet.Envelopes.selectUnspentEnvelopes(price+fee_fudge)
+    selected = selectedraw.copy()
     console.log(`SELECTED`, selected)
     build_buyvideo = wallet.spendEnvelopes(to,price,selected)
     console.log(`PURCHASE`,build_buyvideo)
