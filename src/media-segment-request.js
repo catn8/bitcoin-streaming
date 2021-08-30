@@ -1145,9 +1145,10 @@ export const mediaSegmentRequest = ({
   }
   segmentRequestOptions.headers.publickey=wallet.PublicKey
   segmentRequestOptions.headers.payment=build_buyvideo ? build_buyvideo.rawhex : ``
-  // better way to get proofs?
-  segmentRequestOptions.headers.proof=JSON.stringify(selected)
-  //segmentRequestOptions.headers.proof=JSON.stringify({dummy:"TODO"})
+  // better way to get proofs? what to do if no proof?
+  if (selected) {
+    segmentRequestOptions.headers.proof=JSON.stringify(selected)
+  }
   console.log(`BITCOIN REQUEST`, segmentRequestOptions)
 
   const segmentXhr = xhr(segmentRequestOptions, segmentRequestCallback);
