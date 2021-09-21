@@ -346,11 +346,20 @@ const handleSegmentResponse = ({
     const templatestring = body.substring(body.indexOf('{"template":'))
     const templatewrapper = JSON.parse(templatestring)
     template = templatewrapper.template
-    console.log(`Template retrieved:`, template)
+    console.log(`Template retrieved because payment required:`, template)
     // localStorage.setItem('template', JSON.stringify(template))
+    EventStream.publish("monetization_required", {from:'plugin',body:body})
 
     // what to do here???
-    return finishProcessingFn(null, segment);
+    // if we finish processing without error then it keeps requesting. dont want that
+    let oerr = null
+    oerr = {
+      status: request.status,
+      message: `SERVER RESPONSE => ${body}`,
+      code: REQUEST_ERRORS.FAILURE,
+      xhr: request
+    }
+    return finishProcessingFn(oerr, segment)
 
   } else {
     const selectedenvelopes = JSON.parse(request.headers.proof)
